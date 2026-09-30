@@ -1,0 +1,11 @@
+.git
+**/node_modules
+**/.next
+**/__pycache__
+**/.pytest_cache
+**/*.db
+**/*.db-*
+**/.env
+**/.env.local
+**/test-results
+**/*.tsbuildinfo
