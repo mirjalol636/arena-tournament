@@ -7,14 +7,24 @@ class Base(DeclarativeBase):
     pass
 
 
+database_url = settings().database_url
+
+if database_url.startswith("postgresql://"):
+    database_url = database_url.replace(
+        "postgresql://",
+        "postgresql+psycopg://",
+        1,
+    )
+
 engine = create_engine(
-    settings().database_url,
+    database_url,
     pool_pre_ping=True,
     connect_args={"check_same_thread": False}
-    if settings().database_url.startswith("sqlite")
+    if database_url.startswith("sqlite")
     else {},
 )
-if settings().database_url.startswith("sqlite"):
+
+if database_url.startswith("sqlite"):
 
     @event.listens_for(engine, "connect")
     def sqlite_fk(connection, _):
