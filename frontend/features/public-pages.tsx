@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { MediaSection } from "./media";
+import { HomeMediaCarousel } from "./media";
 import { HomeActivity } from "./home-activity";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -238,7 +238,7 @@ export function Landing() {
           )}
         </section>
         <HomeActivity/>
-        <MediaSection compact/>
+        <HomeMediaCarousel/>
         <section className="section why-section">
           <div>
             <span className="eyebrow">KAMROQ TO‘SIQ. KO‘PROQ RAQOBAT.</span>

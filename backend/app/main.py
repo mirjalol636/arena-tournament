@@ -1,5 +1,7 @@
 import logging
 import time
+import asyncio
+from contextlib import asynccontextmanager
 from collections import defaultdict, deque
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -11,8 +13,35 @@ from app.core.config import settings
 from app.db.session import engine
 from app.api.routes import router
 from app.api.upgrade import router as upgrade_router
+from app.services.auto_tournament import run_auto_tournaments
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async def auto_loop():
+        while True:
+            try:
+                await asyncio.to_thread(run_auto_tournaments)
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                logging.getLogger("arena.auto_tournament").exception(
+                    "Auto tournament loop failed"
+                )
+            await asyncio.sleep(60)
+
+    task = asyncio.create_task(auto_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
 
 app = FastAPI(
+    lifespan=lifespan,
     title="ARENA Tournament API",
     version="1.0.0",
     docs_url="/api/docs",

@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Play, Video, Plus, Pencil, Archive } from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/shell";
@@ -39,5 +40,59 @@ export function MediaAdmin({tournaments}:{tournaments:Tournament[]}) {
  <Modal open={!!edit} onOpenChange={v=>{if(!v&&!busy)setEdit(null);}} title={item?'Videoni tahrirlash':'Video qo‘shish'} description="YouTube, Vimeo yoki ochiq HTTPS MP4/WebM/OGG havolasi. Fayl serverga yuklanmaydi.">{edit&&<form key={item?.id||'new'} className="form" onSubmit={async e=>{e.preventDefault();const f=new FormData(e.currentTarget);setBusy(true);try{await mutate(item?`/media/${item.id}`:'/media',{title:f.get('title'),description:f.get('description'),media_type:f.get('media_type'),video_url:f.get('video_url'),thumbnail_url:f.get('thumbnail_url'),tournament_id:f.get('tournament_id')?Number(f.get('tournament_id')):null,game:f.get('game')||null,status:f.get('status'),featured:f.get('featured')==='on'},item?'PUT':'POST');toast.success('Video saqlandi');setEdit(null);await r.reload();}catch(e){toast.error((e as Error).message);}finally{setBusy(false);}}}>
  <label>Sarlavha<input name="title" required minLength={3} maxLength={160} defaultValue={item?.title}/></label><label>Tavsif<textarea name="description" maxLength={5000} defaultValue={item?.description}/></label><label>Video havolasi<input type="url" name="video_url" required placeholder="https://www.youtube.com/watch?v=…" defaultValue={item?.video_url}/></label><label>Muqova rasmi havolasi<input type="url" name="thumbnail_url" placeholder="https://…" defaultValue={item?.thumbnail_url}/></label><div className="form-grid"><label>Video turi<select name="media_type" defaultValue={item?.media_type||'highlight'}>{Object.entries(mediaTypes).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label><label>Holat<select name="status" defaultValue={item?.status||'draft'}>{Object.entries(mediaStatus).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label><label>Turnir<select name="tournament_id" defaultValue={item?.tournament_id||''}><option value="">Umumiy (faqat administrator)</option>{tournaments.map(t=><option value={t.id} key={t.id}>{t.name}</option>)}</select></label><label>O‘yin<select name="game" defaultValue={item?.game||''}><option value="">Belgilanmagan</option><option value="efootball">eFootball</option><option value="pubg">PUBG Mobile</option></select></label></div><label className="checkbox"><input type="checkbox" name="featured" defaultChecked={item?.featured}/>Tavsiya etilgan video</label>{item&&<VideoPlayer item={item}/>}<Button disabled={busy}>{busy?'Saqlanmoqda…':'Saqlash'}</Button></form>}</Modal>
  <Modal open={!!archive} onOpenChange={v=>{if(!v&&!busy)setArchive(null);}} title="Videoni arxivlash" description={archive?.title}><p>Video ommaviy sahifalardan olib tashlanadi. Keyin uni qayta e’lon qilish mumkin.</p><Button disabled={busy} onClick={async()=>{if(!archive)return;setBusy(true);try{await api(`/media/${archive.id}`,{method:'DELETE'});setArchive(null);await r.reload();toast.success('Video arxivlandi');}catch(e){toast.error((e as Error).message);}finally{setBusy(false);}}}>Arxivlashni tasdiqlash</Button></Modal>
+ </section>;
+}
+
+
+export function HomeMediaCarousel() {
+ const r=useApi<{items:MediaItem[];total:number}>("/media?featured=true&page=1&page_size=6",30000);
+ const [index,setIndex]=useState(0);
+
+ useEffect(()=>{
+  const count=r.data?.items.length||0;
+  if(count<2)return;
+  const timer=setInterval(()=>setIndex(current=>(current+1)%count),7000);
+  return()=>clearInterval(timer);
+ },[r.data?.items.length]);
+
+ if(r.loading)return <Loading/>;
+ if(r.error)return null;
+
+ const items=r.data?.items||[];
+ if(!items.length)return null;
+
+ const safeIndex=index>=items.length?0:index;
+ const item=items[safeIndex];
+ const safeEmbed=/^https:\/\/(www\.youtube-nocookie\.com\/embed\/[A-Za-z0-9_-]{11}|player\.vimeo\.com\/video\/\d+)$/.test(item.embed_url);
+ const autoplayEmbed=safeEmbed?`${item.embed_url}${item.embed_url.includes("?")?"&":"?"}autoplay=1&muted=1&mute=1&playsinline=1`:"";
+
+ return <section className="section home-media-carousel">
+  <div className="section-heading">
+   <div><span className="eyebrow">ARENA MEDIA</span><h2>Eng yaxshi lavhalar<span>.</span></h2></div>
+   <Link href="/media" className="text-link">Barcha videolar →</Link>
+  </div>
+
+  <div className="media-carousel-stage">
+   <div className="media-carousel-player">
+    {item.provider==="file"?<video key={item.id} src={item.video_url} poster={item.thumbnail_url||undefined} autoPlay muted loop playsInline controls preload="metadata"/>:
+    safeEmbed?<iframe key={item.id} src={autoplayEmbed} title={item.title} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"/>:
+    item.thumbnail_url?<Image unoptimized width={1280} height={720} src={item.thumbnail_url} alt={item.title}/>:
+    <div className="media-carousel-fallback"><Video size={60}/></div>}
+
+    <div className="media-carousel-overlay">
+     <small>{mediaTypes[item.media_type]||"ARENA Media"}{item.tournament?` · ${item.tournament}`:""}</small>
+     <h3>{item.title}</h3>
+     <p>{item.description}</p>
+    </div>
+   </div>
+
+   {items.length>1&&<>
+    <button className="media-carousel-arrow previous" aria-label="Oldingi video" onClick={()=>setIndex(current=>current===0?items.length-1:current-1)}>‹</button>
+    <button className="media-carousel-arrow next" aria-label="Keyingi video" onClick={()=>setIndex(current=>(current+1)%items.length)}>›</button>
+    <div className="media-carousel-dots">
+     {items.map((mediaItem,i)=><button key={mediaItem.id} aria-label={`${i+1}-videoga o'tish`} className={i===safeIndex?"active":""} onClick={()=>setIndex(i)}/>)}
+    </div>
+   </>}
+  </div>
  </section>;
 }
