@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -6,29 +6,29 @@ import {
   Trophy,
   Radio,
   BarChart3,
-  LayoutDashboard,
+
   Menu,
   X,
   UserRound,
   Gamepad2,
-  LogOut,
-} from "lucide-react";
+  LogOut} from "lucide-react";
 import { useAuth } from "./auth-provider";
 import { Button } from "./ui/button";
 
 export function Logo() {
   return (
     <Link href="/" className="brand" aria-label="ARENA bosh sahifa">
-      <span className="brand-icon">Λ</span>ARENA
-      <span className="brand-dot">®</span>
+      <span className="brand-icon">О›</span>ARENA
+      <span className="brand-dot">В®</span>
     </Link>
   );
 }
 
 const links = [
   { href: "/tournaments", label: "Turnirlar", icon: Trophy },
-  { href: "/live", label: "O‘yinlar markazi", icon: Radio },
+  { href: "/live", label: "OвЂyinlar markazi", icon: Radio },
   { href: "/leaderboard", label: "Reyting", icon: BarChart3 },
+  { href: "/media", label: "Media", icon: Gamepad2 },
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -37,6 +37,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     [open, setOpen] = useState(false);
   return (
     <>
+      <a className="skip-link" href="#main-content">Asosiy mazmunga oвЂtish</a>
       <header className="site-header">
         <div className="header-inner">
           <Logo />
@@ -91,11 +92,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main>{children}</main>
+      <main id="main-content">{children}</main>
       <footer className="site-footer">
         <Logo />
         <p>Navbatdagi chempion shu yerdan boshlanadi.</p>
-        <span>© {new Date().getFullYear()} ARENA · Turnir boshqaruvi</span>
+        <span>В© {new Date().getFullYear()} ARENA В· Turnir boshqaruvi</span>
       </footer>
       <nav className="bottom-nav" aria-label="Mobil navigatsiya">
         <Link href="/">
@@ -109,7 +110,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             href={l.href}
           >
             <l.icon />
-            {l.href === "/live" ? "O‘yinlar" : l.label}
+            {l.href === "/live" ? "OвЂyinlar" : l.label}
           </Link>
         ))}
         <Link href="/profile">

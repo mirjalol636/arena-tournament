@@ -4,6 +4,9 @@ os.environ["JWT_SECRET"] = "test-only-secret-with-more-than-32-characters"
 os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["REDIS_URL"] = ""
 os.environ["ENVIRONMENT"] = "development"
+os.environ["COOKIE_SECURE"] = "false"
+os.environ["TELEGRAM_BOT_TOKEN"] = ""
+os.environ["BOT_API_SECRET"] = ""
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session

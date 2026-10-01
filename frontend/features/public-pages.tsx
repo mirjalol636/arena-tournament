@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import { MediaSection } from "./media";
+import { HomeActivity } from "./home-activity";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -42,6 +44,7 @@ export function Landing() {
       players: number;
       matches: number;
       champions: number;
+      teams: number;
     }>("/stats"),
     matches = useApi<Match[]>("/matches?status=live");
   return (
@@ -56,7 +59,7 @@ export function Landing() {
           >
             <div className="season-tag">
               <span className="live-dot" />
-              YANGI AVLOD RAQOBATI<span>2026</span>
+              O‘ZBEKISTON ESPORT MAYDONI<span>{new Date().getFullYear()}</span>
             </div>
             <h1>
               BELLASHING.
@@ -82,11 +85,7 @@ export function Landing() {
               </Button>
             </div>
             <div className="hero-trust">
-              <div className="avatar-stack">
-                {["MI", "SA", "ZA", "BA"].map((n) => (
-                  <Avatar name={n} key={n} size="small" />
-                ))}
-              </div>
+              <Users size={22} className="purple"/>
               <span>
                 <strong>{stats.data?.players ?? "—"} nafar ishtirokchi.</strong> Navbatdagi
                 raqibingiz shu yerda.
@@ -112,9 +111,9 @@ export function Landing() {
               <div className="live-card-title">
                 <span>
                   <Radio size={14} />
-                  ANDIJONDAN JONLI EFIR
+                  {matches.data?.length ? "HOZIR MAYDONDA" : "ARENA O‘YINLAR MARKAZI"}
                 </span>
-                <Badge status="live" />
+                {matches.data?.length ? <Badge status="live" /> : <span className="muted">Jadvalni kuzating</span>}
               </div>
               {matches.data?.[0] ? (
                 <>
@@ -153,13 +152,9 @@ export function Landing() {
                 <Trophy size={20} />
               </span>
               <div>
-                <small>ANDIJON KUBOGI MUKOFOT JAMG‘ARMASI</small>
+                <small>{tournaments.data?.items[0]?.name || "TURNIRLARNI KASHF ETING"}</small>
                 <strong>
-                  {money(
-                    tournaments.data?.items.find(
-                      (t) => t.slug === "andijan-efootball-cup-2026",
-                    )?.prize_pool || 0,
-                  )}
+                  {tournaments.data?.items[0] ? money(tournaments.data.items[0].prize_pool) : "ARENA"}
                 </strong>
               </div>
             </div>
@@ -188,22 +183,22 @@ export function Landing() {
           {[
             {
               label: "Faol turnirlar",
-              value: stats.data?.tournaments || 0,
+              value: stats.data?.tournaments ?? "—",
               icon: Trophy,
             },
             {
               label: "Ro‘yxatdan o‘tgan o‘yinchilar",
-              value: stats.data?.players || 0,
+              value: stats.data?.players ?? "—",
               icon: Users,
             },
             {
               label: "O‘tkazilgan o‘yinlar",
-              value: stats.data?.matches || 0,
+              value: stats.data?.matches ?? "—",
               icon: Gamepad2,
             },
             {
-              label: "Chempionlar",
-              value: stats.data?.champions || 0,
+              label: "Jamoalar",
+              value: stats.data?.teams ?? "—",
               icon: Medal,
             },
           ].map((s) => (
@@ -234,7 +229,7 @@ export function Landing() {
             <div className="tournament-grid">
               {tournaments.data?.items
                 .slice()
-                .sort((a,b)=>(a.slug==='andijan-efootball-cup-2026'?-1:b.slug==='andijan-efootball-cup-2026'?1:a.status==='live'?-1:b.status==='live'?1:0))
+                .sort((a,b)=>(a.status==='live'?-1:b.status==='live'?1:0))
                 .slice(0, 3)
                 .map((t) => (
                   <TournamentCard t={t} key={t.id} />
@@ -242,6 +237,8 @@ export function Landing() {
             </div>
           )}
         </section>
+        <HomeActivity/>
+        <MediaSection compact/>
         <section className="section why-section">
           <div>
             <span className="eyebrow">KAMROQ TO‘SIQ. KO‘PROQ RAQOBAT.</span>

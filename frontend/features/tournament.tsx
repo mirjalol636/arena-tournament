@@ -1,5 +1,7 @@
-"use client";
+﻿"use client";
 import Link from "next/link";
+import { RegistrationEntry } from "./registration";
+import { MediaSection } from "./media";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
@@ -9,9 +11,8 @@ import {
   Gamepad2,
   ShieldCheck,
   Clock3,
-  Check,
-  Radio,
-} from "lucide-react";
+
+  Radio} from "lucide-react";
 import { toast } from "sonner";
 import { Shell } from "@/components/shell";
 import { useAuth } from "@/components/auth-provider";
@@ -27,13 +28,11 @@ import {
   Loading,
   ErrorState,
   Empty,
-  Countdown,
-  statusLabels,
-} from "@/components/competition";
+  Countdown} from "@/components/competition";
 import { useApi } from "@/hooks/use-api";
 import { mutate } from "@/services/api";
 import { money, date, gameName, formatName, modeLabels } from "@/lib/utils";
-import type { Tournament, Team, Match, Player, Registration } from "@/types";
+import type { Tournament,  Match} from "@/types";
 
 export function ResultDialog({
   match: m,
@@ -66,7 +65,7 @@ export function ResultDialog({
       title={
         m
           ? `${m.home?.name || "Lobbiy"} vs ${m.away?.name || "Maydon"}`
-          : "O‘yin natijasi"
+          : "OвЂyin natijasi"
       }
       description={m?.round}
     >
@@ -79,7 +78,7 @@ export function ResultDialog({
                 <thead>
                   <tr>
                     <th>Jamoa ID</th>
-                    <th>O‘rin</th>
+                    <th>OвЂrin</th>
                     <th>Killlar</th>
                     <th>Jami ochko</th>
                   </tr>
@@ -96,7 +95,7 @@ export function ResultDialog({
                 </tbody>
               </table>
               {!m.pubg_results.length && (
-                <p>Lobbiy natijalari kiritilgandan so‘ng bu yerda ko‘rinadi.</p>
+                <p>Lobbiy natijalari kiritilgandan soвЂng bu yerda koвЂrinadi.</p>
               )}
             </div>
           ) : (
@@ -104,7 +103,7 @@ export function ResultDialog({
               <div className="result-score">
                 <Avatar name={m.home?.name || "Aniqlanmoqda"} />
                 <b>
-                  {m.home_score ?? "–"} : {m.away_score ?? "–"}
+                  {m.home_score ?? "вЂ“"} : {m.away_score ?? "вЂ“"}
                 </b>
                 <Avatar name={m.away?.name || "Aniqlanmoqda"} />
               </div>
@@ -113,7 +112,7 @@ export function ResultDialog({
                   <span>
                     {r.home_score} : {r.away_score}{" "}
                     {r.home_penalties !== null &&
-                      `(${r.home_penalties}–${r.away_penalties} pen.)`}
+                      `(${r.home_penalties}вЂ“${r.away_penalties} pen.)`}
                   </span>
                   <Badge status={r.state} />
                   {user &&
@@ -145,7 +144,7 @@ export function ResultDialog({
                             )
                           }
                         >
-                          Nizo qo‘zg‘atish
+                          Nizo qoвЂzgвЂatish
                         </Button>
                       </div>
                     )}
@@ -217,14 +216,14 @@ export function ResultDialog({
                   </div>
                   <label className="checkbox">
                     <input name="extra" type="checkbox" />
-                    Qo‘shimcha vaqt o‘ynaldi
+                    QoвЂshimcha vaqt oвЂynaldi
                   </label>
                   <p className="hint">
-                    O‘yinchilar natijani raqib tasdiqlashi uchun yuboradilar. Hakamlar va
-                    tashkilotchilar natijani to‘g‘ridan-to‘g‘ri belgilashlari mumkin.
+                    OвЂyinchilar natijani raqib tasdiqlashi uchun yuboradilar. Hakamlar va
+                    tashkilotchilar natijani toвЂgвЂridan-toвЂgвЂri belgilashlari mumkin.
                   </p>
                   <Button disabled={busy}>
-                    {busy ? "Saqlanmoqda…" : "Natijani yuborish"}
+                    {busy ? "SaqlanmoqdaвЂ¦" : "Natijani yuborish"}
                   </Button>
                 </form>
               ) : (
@@ -242,236 +241,21 @@ export function ResultDialog({
   );
 }
 
-function RegistrationDialog({
-  t,
-  open,
-  close,
-}: {
-  t: Tournament;
-  open: boolean;
-  close: () => void;
-}) {
-  const { user } = useAuth(),
-    [step, setStep] = useState(0),
-    [busy, setBusy] = useState(false),
-    [done, setDone] = useState("");
-  const teams = useApi<Team[]>(open && t.mode === "team" ? "/teams" : null);
-  const profile = useApi<Player>(
-    open && user ? `/players/${user.nickname}` : null,
-  );
-  const [team, setTeam] = useState("");
-  return (
-    <Modal
-      open={open}
-      onOpenChange={(v) => !v && close()}
-      title={done ? "Siz ro‘yxatga qo‘shildingiz." : "Arenaga kirish"}
-      description={t.name}
-    >
-      {!user ? (
-        <div className="form">
-          <p>Ushbu turnirda qatnashish uchun ro‘yxatdan o‘ting yoki hisobingizga kiring.</p>
-          <Button asChild>
-            <Link href="/login">Kirish / Ro‘yxatdan o‘tish</Link>
-          </Button>
-        </div>
-      ) : done ? (
-        <div className="success-state">
-          <Check />
-          <h3>Ro‘yxatdan o‘tish: {statusLabels[done] || done}</h3>
-          <p>
-            Tashkilotchi arizangizni ko‘rib chiqadi. Holatini profilingizdan
-            kuzatib borishingiz mumkin.
-          </p>
-          <Button onClick={close}>Tayyor</Button>
-        </div>
-      ) : (
-        <>
-          <div className="step-indicator">
-            <span className={step === 0 ? "active" : ""}>
-              01 · O‘yinchi ma’lumotlari
-            </span>
-            <span className={step === 1 ? "active" : ""}>
-              02 · Ishtirokni tasdiqlash
-            </span>
-          </div>
-          {step === 0 ? (
-            <form
-              key={profile.data?.id || "loading"}
-              className="form"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                setBusy(true);
-                const f = new FormData(e.currentTarget);
-                try {
-                  await mutate(
-                    "/users/me/profile",
-                    {
-                      full_name: f.get("full_name"),
-                      region: f.get("region"),
-                      avatar: f.get("avatar") || "",
-                      phone: f.get("phone") || "",
-                      game_ids: {
-                        ...profile.data?.game_ids,
-                        [t.game]: f.get("game_id"),
-                      },
-                    },
-                    "PUT",
-                  );
-                  setStep(1);
-                } catch (e) {
-                  toast.error((e as Error).message);
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <div className="form-grid">
-                <label>
-                  To‘liq ism
-                  <input
-                    name="full_name"
-                    required
-                    defaultValue={profile.data?.full_name}
-                  />
-                </label>
-                <label>
-                  Taxallus
-                  <input disabled value={user.nickname} />
-                </label>
-                <label>
-                  {gameName(t.game)} ID
-                  <input
-                    name="game_id"
-                    required
-                    defaultValue={profile.data?.game_ids[t.game]}
-                  />
-                </label>
-                <label>
-                  Hudud
-                  <input
-                    name="region"
-                    required
-                    defaultValue={profile.data?.region || "O‘zbekiston"}
-                  />
-                </label>
-                <label>
-                  Telefon (ixtiyoriy)
-                  <input name="phone" type="tel" />
-                </label>
-                <label>
-                  Avatar rasm havolasi (ixtiyoriy)
-                  <input
-                    name="avatar"
-                    type="url"
-                    placeholder="https://"
-                    defaultValue={profile.data?.avatar}
-                  />
-                </label>
-              </div>
-              <p className="hint">
-                Telegram hisobingizni tasdiqlangan Telegram orqali ulashingiz mumkin.
-                Buni profilingizdan amalga oshirasiz.
-              </p>
-              {t.mode === "team" && (
-                <label>
-                  Sizning jamoangiz
-                  <select
-                    required
-                    value={team}
-                    onChange={(e) => setTeam(e.target.value)}
-                  >
-                    <option value="">Siz sardor bo‘lgan jamoani tanlang</option>
-                    {teams.data
-                      ?.filter((x) => x.captain === user.nickname)
-                      .map((x) => (
-                        <option value={x.id} key={x.id}>
-                          {x.name} · {x.members.length} nafar o‘yinchi
-                        </option>
-                      ))}
-                  </select>
-                  <Link className="text-link" href="/profile">
-                    Profilingizdan jamoa yarating
-                  </Link>
-                </label>
-              )}
-              <Button disabled={busy || profile.loading}>
-                {busy ? "Saqlanmoqda…" : "Davom etish"}
-              </Button>
-            </form>
-          ) : (
-            <div className="form">
-              <div className="entry-summary">
-                <Avatar name={user.nickname} />
-                <div>
-                  <strong>{user.nickname}</strong>
-                  <p>
-                    {gameName(t.game)} · {formatName(t.format)}
-                  </p>
-                </div>
-                <Badge status="pending" />
-              </div>
-              <div className="rules-preview">{t.rules}</div>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  required
-                  id="rules-accept"
-                  onChange={(e) => e.currentTarget.form?.checkValidity()}
-                />
-                Turnir qoidalariga roziman.
-              </label>
-              <Button
-                disabled={busy}
-                onClick={async () => {
-                  const accepted = (
-                    document.getElementById("rules-accept") as HTMLInputElement
-                  ).checked;
-                  if (!accepted) {
-                    toast.error("Davom etish uchun turnir qoidalarini qabul qiling");
-                    return;
-                  }
-                  setBusy(true);
-                  try {
-                    const r = await mutate<{ status: string }>(
-                      `/tournaments/${t.slug}/register`,
-                      { team_id: t.mode === "team" ? Number(team) : null },
-                    );
-                    setDone(r.status);
-                  } catch (e) {
-                    toast.error((e as Error).message);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                {busy ? "Yuborilmoqda…" : "Ro‘yxatdan o‘tishni tasdiqlash"}
-              </Button>
-              <Button variant="ghost" onClick={() => setStep(0)}>
-                Ma’lumotlarga qaytish
-              </Button>
-            </div>
-          )}
-        </>
-      )}
-    </Modal>
-  );
-}
-
 export function TournamentPage({ slug }: { slug: string }) {
   const search = useSearchParams(),
     [tab, setTab] = useState(search.get("tab") || "Overview"),
-    [registration, setRegistration] = useState(false),
     [selected, setSelected] = useState<Match | null>(null);
   const result = useApi<Tournament>(`/tournaments/${slug}`, 15000),
     t = result.data;
   const tabList = [
-    { key: "Overview", label: "Umumiy ko‘rinish" },
+    { key: "Overview", label: "Umumiy koвЂrinish" },
     { key: "Participants", label: "Ishtirokchilar" },
-    { key: "Matches", label: "O‘yinlar" },
+    { key: "Matches", label: "OвЂyinlar" },
     { key: "Groups", label: "Guruhlar" },
     { key: "Bracket", label: "Turnir setkasi" },
     { key: "Leaderboard", label: "Reyting" },
     { key: "Rules", label: "Qoidalar" },
+    { key: "Media", label: "Media" },
   ];
   return (
     <Shell>
@@ -508,16 +292,7 @@ export function TournamentPage({ slug }: { slug: string }) {
                 <h1>{t.name}</h1>
                 <p>{t.description}</p>
                 <div className="row">
-                  <Button
-                    disabled={t.status !== "registration"}
-                    onClick={() => setRegistration(true)}
-                  >
-                    {t.status === "registration"
-                      ? "Ro‘yxatdan o‘tish"
-                      : t.status === "finished"
-                        ? "Turnir yakunlangan"
-                        : "Ro‘yxatdan o‘tish yopilgan"}
-                  </Button>
+                  <RegistrationEntry t={t} onSaved={result.reload}/>
                   <span className="hero-format">
                     <ShieldCheck size={15} />
                     {formatName(t.format)}
@@ -526,10 +301,10 @@ export function TournamentPage({ slug }: { slug: string }) {
               </div>
               <div className="tournament-prize">
                 <Trophy size={52} strokeWidth={1.2} />
-                <small>MUKOFOT JAMG‘ARMASI</small>
+                <small>MUKOFOT JAMGвЂARMASI</small>
                 <strong>{money(t.prize_pool)}</strong>
                 <span>
-                  {t.mode === "team" ? "Jamoaviy" : "Yakka"} · {t.participants}/
+                  {t.mode === "team" ? "Jamoaviy" : "Yakka"} В· {t.participants}/
                   {t.max_participants} ishtirokchi
                 </span>
               </div>
@@ -537,7 +312,7 @@ export function TournamentPage({ slug }: { slug: string }) {
             <div className="tournament-facts">
               <span>
                 <Users />
-                {t.participants} {t.mode === "team" ? "jamoa" : "o‘yinchi"}
+                {t.participants} {t.mode === "team" ? "jamoa" : "oвЂyinchi"}
               </span>
               <span>
                 <CalendarDays />
@@ -545,14 +320,14 @@ export function TournamentPage({ slug }: { slug: string }) {
               </span>
               <span>
                 <Clock3 />
-                Ro‘yxatdan o‘tish tugashi: {date(t.registration_end)}
+                RoвЂyxatdan oвЂtish tugashi: {date(t.registration_end)}
               </span>
               <span>
                 <ShieldCheck />
                 {formatName(t.format)}
               </span>
             </div>
-            <nav className="tabs" aria-label="Turnir bo‘limlari">
+            <nav className="tabs" aria-label="Turnir boвЂlimlari">
               {tabList.map(({ key, label }) => (
                 <button
                   key={key}
@@ -568,6 +343,7 @@ export function TournamentPage({ slug }: { slug: string }) {
               ))}
             </nav>
             <div className="tab-content">
+              {tab === "Media" && <MediaSection tournamentId={t.id}/>}
               {tab === "Overview" && (
                 <>
                   <div className="stat-grid">
@@ -577,7 +353,7 @@ export function TournamentPage({ slug }: { slug: string }) {
                       icon={Users}
                     />
                     <StatCard
-                      label="Jami o‘yinlar"
+                      label="Jami oвЂyinlar"
                       value={t.matches}
                       icon={Gamepad2}
                     />
@@ -595,12 +371,12 @@ export function TournamentPage({ slug }: { slug: string }) {
                   <div className="overview-grid">
                     <div>
                       <div className="section-heading small">
-                        <h2>Navbatdagi o‘yinlar</h2>
+                        <h2>Navbatdagi oвЂyinlar</h2>
                         <button
                           className="text-link"
                           onClick={() => setTab("Matches")}
                         >
-                          Barcha o‘yinlar
+                          Barcha oвЂyinlar
                         </button>
                       </div>
                       <div className="match-grid">
@@ -619,13 +395,13 @@ export function TournamentPage({ slug }: { slug: string }) {
                       </div>
                       {!t.match_list.length && (
                         <Empty
-                          title="O‘yinlar jadvali tez kunda"
-                          detail="Tasdiqlangan ishtirokchilar ro‘yxatdan o‘tish tugagandan so‘ng jadvalga kiritiladi."
+                          title="OвЂyinlar jadvali tez kunda"
+                          detail="Tasdiqlangan ishtirokchilar roвЂyxatdan oвЂtish tugagandan soвЂng jadvalga kiritiladi."
                         />
                       )}
                     </div>
                     <aside className="panel tournament-progress">
-                      <span className="eyebrow">CHEMPIONLIK SARI YO‘L</span>
+                      <span className="eyebrow">CHEMPIONLIK SARI YOвЂL</span>
                       <h3>Turnir borishi</h3>
                       <div className="progress-number">
                         {t.matches
@@ -641,7 +417,7 @@ export function TournamentPage({ slug }: { slug: string }) {
                         />
                       </div>
                       <p>
-                        {t.matches} ta o‘yindan {t.completed} tasi yakunlandi
+                        {t.matches} ta oвЂyindan {t.completed} tasi yakunlandi
                       </p>
                       <div className="divider" />
                       {t.announcements.map((a) => (
@@ -653,14 +429,14 @@ export function TournamentPage({ slug }: { slug: string }) {
                       ))}
                       {t.status === "registration" && (
                         <>
-                          <small>RO‘YXATDAN O‘TISH TUGASHIGA</small>
+                          <small>ROвЂYXATDAN OвЂTISH TUGASHIGA</small>
                           <Countdown at={t.registration_end} />
                         </>
                       )}
                     </aside>
                   </div>
                   <div className="section-heading small">
-                    <h2>So‘nggi natijalar</h2>
+                    <h2>SoвЂnggi natijalar</h2>
                   </div>
                   <div className="match-grid three">
                     {t.match_list
@@ -696,8 +472,8 @@ export function TournamentPage({ slug }: { slug: string }) {
                   ))}
                   {!t.participant_list.length && (
                     <Empty
-                      title="Ilk ishtirokchilardan biri bo‘ling"
-                      detail="Tasdiqlangan ishtirokchilar shu yerda ko‘rinadi."
+                      title="Ilk ishtirokchilardan biri boвЂling"
+                      detail="Tasdiqlangan ishtirokchilar shu yerda koвЂrinadi."
                     />
                   )}
                 </div>
@@ -709,8 +485,8 @@ export function TournamentPage({ slug }: { slug: string }) {
                   ))}
                   {!t.match_list.length && (
                     <Empty
-                      title="Hali o‘yinlar rejalashtirilmagan"
-                      detail="Ro‘yxatdan o‘tish yakunlangandan so‘ng tekshiring."
+                      title="Hali oвЂyinlar rejalashtirilmagan"
+                      detail="RoвЂyxatdan oвЂtish yakunlangandan soвЂng tekshiring."
                     />
                   )}
                 </div>
@@ -721,7 +497,7 @@ export function TournamentPage({ slug }: { slug: string }) {
                     <h2>Guruh bosqichi</h2>
                     <span className="qualification-key">
                       <i />
-                      Saralash zonasi · Dastlabki 2 o‘rin
+                      Saralash zonasi В· Dastlabki 2 oвЂrin
                     </span>
                   </div>
                   <div className="groups-grid">
@@ -729,7 +505,7 @@ export function TournamentPage({ slug }: { slug: string }) {
                       <section className="panel" key={g.id}>
                         <div className="panel-heading">
                           <h3>{g.name}</h3>
-                          <span>{g.standings.length} nafar o‘yinchi</span>
+                          <span>{g.standings.length} nafar oвЂyinchi</span>
                         </div>
                         <StandingsTable
                           rows={g.standings}
@@ -742,7 +518,7 @@ export function TournamentPage({ slug }: { slug: string }) {
                   {!t.groups.length && (
                     <Empty
                       title="Guruh bosqichi mavjud emas"
-                      detail="Ushbu turnirda guruhlar rejalashtirilmagan yoki to‘g‘ridan-to‘g‘ri pley-off tizimi qo‘llaniladi."
+                      detail="Ushbu turnirda guruhlar rejalashtirilmagan yoki toвЂgвЂridan-toвЂgвЂri pley-off tizimi qoвЂllaniladi."
                     />
                   )}
                 </>
@@ -752,7 +528,7 @@ export function TournamentPage({ slug }: { slug: string }) {
                   <div className="panel-heading">
                     <div>
                       <span className="eyebrow">
-                        HAR BIR O‘YIN. G‘ALABAGA BIR QADAM.
+                        HAR BIR OвЂYIN. GвЂALABAGA BIR QADAM.
                       </span>
                       <h2>Chempionlik turnir setkasi</h2>
                     </div>
@@ -767,8 +543,8 @@ export function TournamentPage({ slug }: { slug: string }) {
                     <h2>Turnir jadvali</h2>
                     <span>
                       {t.game === "pubg"
-                        ? "O‘rin + killlar"
-                        : "G‘alaba 3 · Durang 1 · Mag‘lubiyat 0"}
+                        ? "OвЂrin + killlar"
+                        : "GвЂalaba 3 В· Durang 1 В· MagвЂlubiyat 0"}
                     </span>
                   </div>
                   <StandingsTable rows={t.leaderboard} game={t.game} />
@@ -777,7 +553,7 @@ export function TournamentPage({ slug }: { slug: string }) {
               {tab === "Rules" && (
                 <div className="rules-layout">
                   <section className="panel prose">
-                    <span className="eyebrow">HALOL O‘YIN SHU YERDAN BOSHLANADI</span>
+                    <span className="eyebrow">HALOL OвЂYIN SHU YERDAN BOSHLANADI</span>
                     <h2>Turnir qoidalari</h2>
                     <p className="preserve">{t.rules}</p>
                   </section>
@@ -785,21 +561,21 @@ export function TournamentPage({ slug }: { slug: string }) {
                     <ShieldCheck />
                     <h3>Musobaqa tafsilotlari</h3>
                     <p>
-                      {formatName(t.format)} · {modeLabels[t.mode] || t.mode}
+                      {formatName(t.format)} В· {modeLabels[t.mode] || t.mode}
                     </p>
                     <p>Maksimal {t.max_participants} nafar ishtirokchi.</p>
                     {t.mode === "team" && (
                       <p>
-                        Tarkibda {t.min_team_size}–{t.max_team_size} nafar o‘yinchi (zaxira
-                        o‘yinchilari bilan birga).
+                        Tarkibda {t.min_team_size}вЂ“{t.max_team_size} nafar oвЂyinchi (zaxira
+                        oвЂyinchilari bilan birga).
                       </p>
                     )}
                     {t.game === "pubg" && (
                       <>
-                        <h4>O‘rinlar bo‘yicha ochkolar</h4>
+                        <h4>OвЂrinlar boвЂyicha ochkolar</h4>
                         {Object.entries(t.placement_points).map(([p, v]) => (
                           <div className="list-row" key={p}>
-                            <span>{p}-o‘rin</span>
+                            <span>{p}-oвЂrin</span>
                             <strong>{v} ochko</strong>
                           </div>
                         ))}
@@ -810,11 +586,6 @@ export function TournamentPage({ slug }: { slug: string }) {
                 </div>
               )}
             </div>
-            <RegistrationDialog
-              t={t}
-              open={registration}
-              close={() => setRegistration(false)}
-            />
             <ResultDialog
               match={selected}
               close={() => setSelected(null)}

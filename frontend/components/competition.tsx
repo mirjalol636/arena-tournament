@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 import Link from "next/link";
+import Image from "next/image";
 import { BracketConnections } from "./bracket-connections";
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -8,20 +9,19 @@ import {
   Users,
   CalendarDays,
   Gamepad2,
-  Radio,
-  Shield,
+
+
   Target,
   Clock3,
   ChevronRight,
-  SearchX,
-} from "lucide-react";
+  SearchX} from "lucide-react";
 import { Button } from "./ui/button";
 import { date, time, money, gameName, formatName, modeLabels } from "@/lib/utils";
 import type { Tournament, Match, Standing } from "@/types";
 
 export const statusLabels: Record<string, string> = {
   live: "Jonli",
-  registration: "Ro‘yxatdan o‘tish",
+  registration: "RoвЂyxatdan oвЂtish",
   upcoming: "Yaqinlashayotgan",
   scheduled: "Rejalashtirilgan",
   completed: "Yakunlangan",
@@ -30,11 +30,11 @@ export const statusLabels: Record<string, string> = {
   pending: "Kutilmoqda",
   approved: "Tasdiqlangan",
   rejected: "Rad etilgan",
-  waitlist: "Kutish ro‘yxatida",
+  waitlist: "Kutish roвЂyxatida",
   draft: "Qoralama",
   disputed: "Nizoli",
   confirmed: "Tasdiqlangan",
-  announcement: "E’lon",
+  announcement: "EвЂ™lon",
   connected: "Ulangan",
   "not configured": "Sozlanmagan",
   linked: "Ulangan",
@@ -62,7 +62,7 @@ export function Avatar({
   return (
     <span className={`avatar ${size} tone-${name.length % 5}`}>
       {src ? (
-        <img
+        <Image unoptimized width={80} height={80}
           src={src}
           alt=""
           onError={(e) => {
@@ -93,7 +93,6 @@ export function StatCard({
   const reduced = useReducedMotion();
   useEffect(() => {
     if (typeof value !== "number" || reduced) {
-      setShown(value);
       return;
     }
     const start = performance.now();
@@ -112,7 +111,7 @@ export function StatCard({
         <span>{label}</span>
         <Icon size={18} />
       </div>
-      <strong>{shown}</strong>
+      <strong>{typeof value!=="number"||reduced?value:shown}</strong>
       {detail && <small>{detail}</small>}
     </div>
   );
@@ -152,9 +151,9 @@ export function TournamentCard({ t }: { t: Tournament }) {
             </>
           ) : (
             <>
-              SENING O‘YINING.
+              SENING OвЂYINING.
               <br />
-              <span>SENING G‘ALABANG.</span>
+              <span>SENING GвЂALABANG.</span>
             </>
           )}
         </div>
@@ -168,7 +167,7 @@ export function TournamentCard({ t }: { t: Tournament }) {
       </Link>
       <div className="tournament-content">
         <span className="eyebrow">
-          {formatName(t.format)} · {modeLabels[t.mode] || t.mode}
+          {formatName(t.format)} В· {modeLabels[t.mode] || t.mode}
         </span>
         <Link href={`/tournaments/${t.slug}`}>
           <h3>{t.name}</h3>
@@ -177,7 +176,7 @@ export function TournamentCard({ t }: { t: Tournament }) {
           <span>
             <Users size={15} />
             {t.participants}/{t.max_participants}{" "}
-            {t.mode === "team" ? "jamoa" : "o‘yinchi"}
+            {t.mode === "team" ? "jamoa" : "oвЂyinchi"}
           </span>
           <span>
             <CalendarDays size={15} />
@@ -186,13 +185,13 @@ export function TournamentCard({ t }: { t: Tournament }) {
         </div>
         <div className="card-bottom">
           <div>
-            <small>MUKOFOT JAMG‘ARMASI</small>
+            <small>MUKOFOT JAMGвЂARMASI</small>
             <strong>{money(t.prize_pool)}</strong>
           </div>
           <Link className="text-link" href={`/tournaments/${t.slug}`}>
             {t.status === "registration"
-              ? "Turnirga qo‘shilish"
-              : "Turnirni ko‘rish"}
+              ? "Turnirga qoвЂshilish"
+              : "Turnirni koвЂrish"}
             <ChevronRight size={16} />
           </Link>
         </div>
@@ -248,7 +247,7 @@ export function MatchCard({
       <div className="match-footer">
         <span>
           <Clock3 size={13} />
-          {date(m.scheduled_at)} · {time(m.scheduled_at)}
+          {date(m.scheduled_at)} В· {time(m.scheduled_at)}
         </span>
         {!compact && <span>{gameName(m.game)}</span>}
       </div>
@@ -294,7 +293,7 @@ export function StandingsTable({
         <thead>
           <tr>
             <th>#</th>
-            <th>{game === "pubg" ? "Jamoa" : "O‘yinchi"}</th>
+            <th>{game === "pubg" ? "Jamoa" : "OвЂyinchi"}</th>
             {(game === "pubg"
               ? ["played", "placement_points", "kill_points", "points"]
               : [
@@ -317,20 +316,20 @@ export function StandingsTable({
                   {
                     (
                       {
-                        played: "O‘",
-                        wins: "G‘",
+                        played: "OвЂ",
+                        wins: "GвЂ",
                         draws: "D",
                         losses: "M",
                         gf: "UR",
-                        ga: "O‘T",
+                        ga: "OвЂT",
                         gd: "TF",
                         points: "OCH",
-                        placement_points: "O‘RIN",
+                        placement_points: "OвЂRIN",
                         kill_points: "KILL",
                       } as Record<string, string>
                     )[c]
                   }
-                  {sort === c ? " ↓" : ""}
+                  {sort === c ? " в†“" : ""}
                 </button>
               </th>
             ))}
@@ -388,7 +387,7 @@ export function StandingsTable({
       {!rows.length && (
         <Empty
           title="Turnir jadvali kutilmoqda"
-          detail="Ishtirokchilar tasdiqlangandan so‘ng turnir jadvali paydo bo‘ladi."
+          detail="Ishtirokchilar tasdiqlangandan soвЂng turnir jadvali paydo boвЂladi."
         />
       )}
     </div>
@@ -408,8 +407,8 @@ export function Bracket({
   if (!stages.length)
     return (
       <Empty
-        title="Final sari yo‘l shakllanmoqda"
-        detail="Tashkilotchi pley-off bosqichini yaratganda turnir setkasi paydo bo‘ladi."
+        title="Final sari yoвЂl shakllanmoqda"
+        detail="Tashkilotchi pley-off bosqichini yaratganda turnir setkasi paydo boвЂladi."
         icon={Trophy}
       />
     );
@@ -447,7 +446,7 @@ export function Bracket({
                             key={m.id}
                           >
                             <div className="bracket-match-top">
-                              <span>O‘YIN {String(m.id).padStart(2, "0")}</span>
+                              <span>OвЂYIN {String(m.id).padStart(2, "0")}</span>
                               <Badge status={m.status} />
                             </div>
                             {[m.home, m.away].map((p, j) => (
@@ -455,16 +454,16 @@ export function Bracket({
                                 className={`bracket-player ${p && m.winner_id === p.id ? "winner" : ""}`}
                                 key={j}
                               >
-                                <Avatar name={p?.name || "—"} size="small" />
+                                <Avatar name={p?.name || "вЂ”"} size="small" />
                                 <span>{p?.name || "Aniqlanmoqda"}</span>
                                 <strong>
                                   {(j === 0 ? m.home_score : m.away_score) ??
-                                    "–"}
+                                    "вЂ“"}
                                 </strong>
                               </div>
                             ))}
                             <small>
-                              {time(m.scheduled_at)} · {date(m.scheduled_at)}
+                              {time(m.scheduled_at)} В· {date(m.scheduled_at)}
                             </small>
                           </motion.button>
                         ))}
@@ -483,7 +482,7 @@ export function Bracket({
                       ms.find((m) => !m.next_match_id && m.winner_id)?.home?.id
                         ? "home"
                         : "away"
-                    ]?.name || "Chempion kim bo‘ladi?"}
+                    ]?.name || "Chempion kim boвЂladi?"}
                   </strong>
                 </div>
               </div>
@@ -519,7 +518,7 @@ export function Loading() {
       {[1, 2, 3].map((x) => (
         <div className="skeleton" key={x} />
       ))}
-      <span className="sr-only">Turnir ma’lumotlari yuklanmoqda</span>
+      <span className="sr-only">Turnir maвЂ™lumotlari yuklanmoqda</span>
     </div>
   );
 }
@@ -533,7 +532,7 @@ export function ErrorState({
 }) {
   return (
     <div className="container">
-      <Empty title="Sahifani yuklab bo‘lmadi" detail={message} />
+      <Empty title="Sahifani yuklab boвЂlmadi" detail={message} />
       <div className="center">
         <Button onClick={retry}>Qaytadan urinish</Button>
       </div>
@@ -560,7 +559,7 @@ export function Countdown({ at }: { at: string }) {
   return (
     <span className="countdown">
       <Clock3 size={14} />
-      {remaining || "—"}
+      {remaining || "вЂ”"}
     </span>
   );
 }

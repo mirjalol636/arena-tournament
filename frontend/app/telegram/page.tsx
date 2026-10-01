@@ -1,11 +1,13 @@
 "use client";
 import Script from "next/script";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth-provider";
 import { useState } from "react";
-import { mutate } from "@/services/api";
 import { Shell } from "@/components/shell";
 import { Button } from "@/components/ui/button";
 
 export default function TelegramPage() {
+  const router=useRouter(),auth=useAuth();
   const [message, setMessage] = useState(
       "Ushbu sahifani ARENA Telegram boti orqali oching.",
     ),
@@ -32,10 +34,8 @@ export default function TelegramPage() {
               return;
             }
             try {
-              await mutate("/auth/telegram", {
-                init_data: w.Telegram.WebApp.initData,
-              });
-              window.location.href = "/profile";
+              await auth.telegram(w.Telegram.WebApp.initData);
+              router.push("/profile");
             } catch (e) {
               setMessage((e as Error).message);
             }

@@ -52,7 +52,7 @@ def issue_tokens(db, user, response):
 def current_user(request: Request, db=Depends(get_db)):
     token = request.headers.get("Authorization", "").removeprefix("Bearer ")
     try:
-        payload = jwt.decode(token, settings().jwt_secret, algorithms=["HS256"])
+        payload = jwt.decode(token, settings().jwt_secret, algorithms=["HS256"], options={"require":["exp","sub","type"]})
         if payload.get("type") != "access":
             raise ValueError()
         user = db.get(User, int(payload["sub"]))
@@ -91,3 +91,7 @@ def same_origin(request):
     origin = request.headers.get("origin")
     if origin and origin not in settings().cors_origins.split(","):
         raise HTTPException(403, "Origin not allowed")
+
+
+def optional_user(request: Request, db=Depends(get_db)):
+    return current_user(request,db) if request.headers.get('Authorization') else None

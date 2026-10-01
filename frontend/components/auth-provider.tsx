@@ -8,6 +8,7 @@ type Auth = {
   login: (email: string, password: string) => Promise<void>;
   signup: (data: Record<string, string>) => Promise<void>;
   logout: () => Promise<void>;
+  telegram: (init_data:string) => Promise<void>;
 };
 const Context = createContext<Auth>({
   user: null,
@@ -15,13 +16,19 @@ const Context = createContext<Auth>({
   login: async () => {},
   signup: async () => {},
   logout: async () => {},
+  telegram: async () => {},
 });
 export const useAuth = () => useContext(Context);
 let pendingRefresh: Promise<{user:User;access_token:string}> | null = null;
-function refreshSession(){
-  if(!pendingRefresh) pendingRefresh=mutate<{user:User;access_token:string}>("/auth/refresh",{}).finally(()=>{pendingRefresh=null;});
-  return pendingRefresh;
+async function requestRefresh():Promise<{user:User;access_token:string}>{
+ const request=()=>mutate<{user:User;access_token:string}>("/auth/refresh",{});
+ return navigator.locks ? await navigator.locks.request("arena-session-refresh",request) : await request();
 }
+function refreshSession():Promise<{user:User;access_token:string}>{
+ if(!pendingRefresh)pendingRefresh=requestRefresh().finally(()=>{pendingRefresh=null;});
+ return pendingRefresh;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null),
     [ready, setReady] = useState(false);
@@ -60,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login: async (email, password) =>
           accept(await mutate("/auth/login", { email, password })),
         signup: async (data) => accept(await mutate("/auth/signup", data)),
+        telegram: async (init_data) => accept(await mutate("/auth/telegram", {init_data})),
         logout: async () => {
           await api("/auth/logout", { method: "POST" });
           setToken(null);

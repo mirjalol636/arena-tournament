@@ -1,3 +1,4 @@
+import { apiMessage } from "@/lib/errors";
 let token: string | null = null;
 export const setToken = (value: string | null) => {
   token = value;
@@ -14,16 +15,12 @@ export async function api<T>(
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
-  });
+  }).catch(() => { throw new Error("Internet aloqasini tekshiring va qayta urinib ko‘ring."); });
   if (!response.ok) {
     const body = await response
       .json()
       .catch(() => ({ detail: "Connection failed" }));
-    throw new Error(
-      Array.isArray(body.detail)
-        ? body.detail.map((d: { msg: string }) => d.msg).join(". ")
-        : body.detail || "Something went wrong",
-    );
+    throw new Error(apiMessage(body.detail,response.status));
   }
   return response.status === 204 ? (undefined as T) : response.json();
 }

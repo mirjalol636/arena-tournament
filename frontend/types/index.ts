@@ -67,6 +67,10 @@ export type Match = {
   }[];
 };
 export type Tournament = {
+  end_date: string | null;
+  updated_at: string;
+  registration_window: string;
+  server_now: string;
   id: number;
   slug: string;
   name: string;
@@ -99,6 +103,7 @@ export type Tournament = {
   announcements: { id: number; title: string; body: string }[];
 };
 export type Player = {
+  phone?: string;
   id: number;
   username: string;
   nickname: string;

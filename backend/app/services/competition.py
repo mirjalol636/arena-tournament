@@ -524,9 +524,9 @@ def approve_registration(db, registration, status):
             "Tournament is full; place this registration on the waitlist",
         )
         if registration.team_id:
-            team = db.get(Team, registration.team_id)
+            team = db.scalar(select(Team).where(Team.id == registration.team_id).with_for_update())
             require(
-                t.min_team_size <= len(team.members) <= t.max_team_size,
+                t.min_team_size <= sum(not m.substitute for m in team.members) and len(team.members) <= t.max_team_size,
                 "Team roster no longer meets tournament size limits",
             )
             roster = {m.player_id for m in team.members}
@@ -544,5 +544,7 @@ def approve_registration(db, registration, status):
                 seed=len(participants) + 1,
             )
         )
+    require(registration.status != status, "Registration already has this status")
     registration.status = status
-    notify(db, registration.user_id, f"Registration {status}", t.name)
+    labels={"approved":"Ishtirokingiz tasdiqlandi","rejected":"Arizangiz rad etildi","waitlist":"Kutish ro‘yxatiga qo‘shildingiz"}
+    notify(db, registration.user_id, labels[status], t.name)

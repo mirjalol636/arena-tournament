@@ -89,6 +89,7 @@ class Tournament(Record, Base):
     registration_start: Mapped[datetime] = mapped_column(default=now)
     registration_end: Mapped[datetime]
     start_date: Mapped[datetime]
+    end_date: Mapped[datetime | None]
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     rules: Mapped["TournamentRule"] = relationship(
         uselist=False, cascade="all, delete-orphan"
@@ -143,7 +144,7 @@ class Participant(Record, Base):
 
 class Registration(Record, Base):
     __tablename__ = "registrations"
-    __table_args__ = (UniqueConstraint("tournament_id", "user_id"),)
+    __table_args__ = (UniqueConstraint("tournament_id", "user_id"), UniqueConstraint("tournament_id", "team_id", name="uq_registration_tournament_team"))
     tournament_id: Mapped[int] = mapped_column(ForeignKey("tournaments.id"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id"))
@@ -302,3 +303,23 @@ class AuditLog(Record, Base):
 
 
 Index("ix_matches_tournament_status", Match.tournament_id, Match.status)
+
+
+class Media(Record, Base):
+    __tablename__ = "media"
+    title: Mapped[str] = mapped_column(String(160))
+    description: Mapped[str] = mapped_column(Text,default="")
+    media_type: Mapped[str] = mapped_column(String(24))
+    video_url: Mapped[str] = mapped_column(String(2000))
+    thumbnail_url: Mapped[str] = mapped_column(String(2000),default="")
+    tournament_id: Mapped[int | None] = mapped_column(ForeignKey("tournaments.id"),index=True)
+    game: Mapped[str | None] = mapped_column(ForeignKey("games.slug"))
+    status: Mapped[str] = mapped_column(String(16),default="draft")
+    featured: Mapped[bool] = mapped_column(default=False)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"),index=True)
+    published_at: Mapped[datetime | None]
+    tournament: Mapped[Tournament | None] = relationship()
+
+
+Index("ix_media_public", Media.status, Media.featured, Media.published_at)
+Index("ix_registration_tournament_status",Registration.tournament_id,Registration.status)

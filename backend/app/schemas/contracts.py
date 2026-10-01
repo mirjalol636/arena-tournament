@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
+from app.core.urls import public_https, video_source
 
 
 class Login(BaseModel):
@@ -31,13 +32,20 @@ class ProfileUpdate(BaseModel):
     @field_validator("avatar")
     @classmethod
     def safe_image(cls, v):
-        if v and not v.startswith("https://"):
-            raise ValueError("Use an HTTPS image URL")
-        return v
+        return public_https(v)
+
+    @field_validator('game_ids')
+    @classmethod
+    def validate_game_ids(cls, values):
+        if any(k not in {'efootball','pubg'} or len(v.strip())>100 for k,v in values.items()):
+            raise ValueError('Invalid game ID')
+        return {k:v.strip() for k,v in values.items()}
 
 
 class TournamentCreate(BaseModel):
     name: str = Field(min_length=4, max_length=120)
+    slug: str | None = Field(default=None,min_length=3,max_length=120,pattern=r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
+    status: Literal['registration','upcoming','live','finished','draft'] = 'registration'
     game: Literal["efootball", "pubg"]
     format: Literal[
         "single_elimination",
@@ -58,25 +66,27 @@ class TournamentCreate(BaseModel):
     registration_start: datetime
     registration_end: datetime
     start_date: datetime
+    end_date: datetime | None = None
     rules: str = Field(
         default="Respect your opponent. Check in 15 minutes before your match.",
         max_length=20000,
     )
 
-    @field_validator("registration_start", "registration_end", "start_date")
+    @field_validator("registration_start", "registration_end", "start_date", "end_date")
     @classmethod
     def utc(cls, v):
+        if v is None: return v
         return v.astimezone(timezone.utc).replace(tzinfo=None) if v.tzinfo else v
 
     @field_validator("banner", "logo")
     @classmethod
     def safe_url(cls, v):
-        if v and not v.startswith("https://"):
-            raise ValueError("Use an HTTPS image URL")
-        return v
+        return public_https(v)
 
     @model_validator(mode="after")
     def check(self):
+        if self.end_date and self.end_date < self.start_date:
+            raise ValueError('Tournament end must follow its start')
         if not self.registration_start < self.registration_end <= self.start_date:
             raise ValueError(
                 "Registration must end after it opens and before the tournament starts"
@@ -110,9 +120,33 @@ class TeamCreate(BaseModel):
     @field_validator("logo")
     @classmethod
     def safe_url(cls, v):
-        if v and not v.startswith("https://"):
-            raise ValueError("Use an HTTPS logo URL")
-        return v
+        return public_https(v)
+
+
+class MediaWrite(BaseModel):
+    title: str = Field(min_length=3,max_length=160)
+    description: str = Field(default='',max_length=5000)
+    media_type: Literal['trailer','gameplay','highlight','promotion','announcement']
+    video_url: str = Field(max_length=2000)
+    thumbnail_url: str = Field(default='',max_length=2000)
+    tournament_id: int | None = None
+    game: Literal['efootball','pubg'] | None = None
+    status: Literal['draft','published','archived'] = 'draft'
+    featured: bool = False
+
+    @field_validator('video_url')
+    @classmethod
+    def video(cls,v):
+        video_source(v)
+        return v.strip()
+
+    @field_validator('thumbnail_url')
+    @classmethod
+    def thumbnail(cls,v): return public_https(v)
+
+
+class TournamentEdit(TournamentCreate):
+    expected_updated_at: datetime | None = None
 
 
 class Schedule(BaseModel):

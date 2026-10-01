@@ -9,9 +9,12 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query
 from sqlalchemy import select, func, or_, delete
 from app.db.session import get_db
+from app.services.registration import locked_tournament, assert_open, registration_state
+from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.core.security import (
     current_user,
+    optional_user,
     staff,
     passwords,
     issue_tokens,
@@ -175,10 +178,11 @@ async def telegram_auth(request: Request, response: Response, db=Depends(get_db)
 @router.get("/stats")
 def stats(db=Depends(get_db)):
     return dict(
+        teams=db.scalar(select(func.count()).select_from(Team)),
         tournaments=db.scalar(
             select(func.count())
             .select_from(Tournament)
-            .where(Tournament.status != "finished")
+            .where(Tournament.status.notin_(["finished", "draft"]))
         ),
         players=db.scalar(select(func.count()).select_from(Player)),
         matches=db.scalar(
@@ -203,7 +207,7 @@ def tournaments(
     page_size: int = Query(12, ge=1, le=100),
     db=Depends(get_db),
 ):
-    query = select(Tournament)
+    query = select(Tournament).where(Tournament.status != "draft")
     if q:
         query = query.where(Tournament.name.ilike(f"%{q[:120]}%"))
     if game:
@@ -232,10 +236,11 @@ def create_tournament(data: TournamentCreate, user=Depends(staff), db=Depends(ge
         "Tournament creation requires organizer access",
         403,
     )
-    slug = re.sub(r"[^a-z0-9]+", "-", data.name.lower()).strip("-") or "tournament"
+    slug = data.slug or re.sub(r"[^a-z0-9]+", "-", data.name.lower()).strip("-") or "tournament"
     if db.scalar(select(Tournament.id).where(Tournament.slug == slug)):
+        require(not data.slug,"Tournament slug already exists")
         slug += f"-{secrets.token_hex(3)}"
-    t = Tournament(**data.model_dump(exclude={"rules"}), slug=slug, owner_id=user.id)
+    t = Tournament(**data.model_dump(exclude={"rules", "slug"}), slug=slug, owner_id=user.id)
     db.add(t)
     db.flush()
     db.add(TournamentRule(tournament_id=t.id, text=data.rules))
@@ -246,19 +251,20 @@ def create_tournament(data: TournamentCreate, user=Depends(staff), db=Depends(ge
 
 
 @router.get("/tournaments/{slug}")
-def tournament_detail(slug: str, db=Depends(get_db)):
+def public_tournament_detail(slug: str, db=Depends(get_db), user=Depends(optional_user)):
+    t=get_tournament(db,slug)
+    if t.status=='draft':
+        require(user is not None,'Tournament not found',404)
+        authorize(db,user,t)
+    return tournament_detail(slug,db)
+
+
+def tournament_detail(slug: str, db):
     t = get_tournament(db, slug)
     return {
         **tournament_view(db, t),
         "participant_list": [participant_view(p) for p in t.participants],
-        "match_list": [
-            match_view(db, m)
-            for m in db.scalars(
-                select(Match)
-                .where(Match.tournament_id == t.id)
-                .order_by(Match.scheduled_at, Match.id)
-            )
-        ],
+        "match_list": match_views(db,select(Match).where(Match.tournament_id==t.id).order_by(Match.scheduled_at,Match.id)),
         "groups": [
             dict(id=g.id, name=g.name, standings=standings(db, t.id, g.id))
             for g in db.scalars(select(Group).where(Group.tournament_id == t.id))
@@ -277,12 +283,9 @@ def tournament_detail(slug: str, db=Depends(get_db)):
 
 @router.post("/tournaments/{slug}/register", status_code=201)
 def register(slug: str, data: Register, user=Depends(current_user), db=Depends(get_db)):
-    t = get_tournament(db, slug)
-    require(
-        t.status == "registration"
-        and t.registration_start <= now() <= t.registration_end,
-        "Registration is closed",
-    )
+    original = get_tournament(db, slug)
+    t = locked_tournament(db, original.id)
+    assert_open(t)
     require(
         not db.scalar(
             select(Registration.id).where(
@@ -298,12 +301,14 @@ def register(slug: str, data: Register, user=Depends(current_user), db=Depends(g
         422,
     )
     if t.mode == "team":
-        team = get_record(db, Team, data.team_id)
+        require(data.team_id is not None, "Select a team you captain", 422)
+        team = db.scalar(select(Team).where(Team.id == data.team_id).with_for_update())
+        require(team is not None, "Team not found", 404)
         require(
             team.captain_id == user.player.id, "Only the team captain can register", 403
         )
         require(
-            t.min_team_size <= len(team.members) <= t.max_team_size,
+            t.min_team_size <= sum(not m.substitute for m in team.members) and len(team.members) <= t.max_team_size,
             "Your team does not meet roster size requirements",
             422,
         )
@@ -317,11 +322,12 @@ def register(slug: str, data: Register, user=Depends(current_user), db=Depends(g
         )
     else:
         require(data.team_id is None, "This is a solo tournament", 422)
+    require(not db.scalar(select(Participant.id).where(Participant.tournament_id==t.id, Participant.team_id==data.team_id if t.mode=="team" else Participant.player_id==user.player.id)), "You are already a participant")
     reg = Registration(
         tournament_id=t.id,
         user_id=user.id,
         team_id=data.team_id,
-        status="waitlist" if len(t.participants) >= t.max_participants else "pending",
+        status="waitlist" if db.scalar(select(func.count()).select_from(Participant).where(Participant.tournament_id==t.id)) >= t.max_participants else "pending",
     )
     db.add(reg)
     db.commit()
@@ -335,8 +341,11 @@ def registrations(user=Depends(current_user), db=Depends(get_db)):
         query = query.where(Registration.user_id == user.id)
     elif user.role not in {"SUPER_ADMIN", "ADMIN"}:
         query = query.join(Tournament).where(Tournament.owner_id == user.id)
-    return [
-        dict(
+    return [registration_view(db,r) for r in db.scalars(query)]
+
+
+def registration_view(db,r):
+    return dict(
             id=r.id,
             tournament_id=r.tournament_id,
             tournament=r.tournament.name,
@@ -364,8 +373,6 @@ def registrations(user=Depends(current_user), db=Depends(get_db)):
                 ],
             ) if r.team else None,
         )
-        for r in db.scalars(query)
-    ]
 
 
 @router.patch("/registrations/{registration_id}")
@@ -375,9 +382,9 @@ def review_registration(
     user=Depends(staff),
     db=Depends(get_db),
 ):
-    r = db.scalar(
-        select(Registration).where(Registration.id == registration_id).with_for_update()
-    )
+    existing = get_record(db, Registration, registration_id)
+    locked_tournament(db, existing.tournament_id)
+    r = db.scalar(select(Registration).where(Registration.id == registration_id).with_for_update().execution_options(populate_existing=True))
     require(r is not None, "Registration not found", 404)
     authorize(db, user, r.tournament)
     approve_registration(db, r, data.status)
@@ -390,8 +397,7 @@ def review_registration(
 
 @router.post("/tournaments/{slug}/schedule", status_code=201)
 def schedule(slug: str, data: Schedule, user=Depends(staff), db=Depends(get_db)):
-    t = get_tournament(db, slug)
-    db.scalar(select(Tournament).where(Tournament.id == t.id).with_for_update())
+    t = locked_tournament(db, get_tournament(db, slug).id)
     authorize(db, user, t)
     generate_schedule(db, t, data)
     audit(db, user, "generate_schedule", "tournament", t.id, data.model_dump())
@@ -408,18 +414,12 @@ def matches(
     page_size: int = Query(30, ge=1, le=100),
     db=Depends(get_db),
 ):
-    query = select(Match)
+    query = select(Match).join(Tournament).where(Tournament.status != "draft")
     if status:
         query = query.where(Match.status == status)
     # Public match browsing only; private identity filters use /users/me/matches.
-    return [
-        match_view(db, m)
-        for m in db.scalars(
-            query.order_by(Match.scheduled_at)
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-        )
-    ]
+    order=Match.scheduled_at.desc() if status in {'completed','walkover'} else Match.scheduled_at.asc()
+    return match_views(db,query.order_by(order,Match.id).offset((page-1)*page_size).limit(page_size))
 
 
 @router.post("/matches", status_code=201)
@@ -699,36 +699,30 @@ def scoring(slug: str, data: Scoring, user=Depends(staff), db=Depends(get_db)):
 
 
 @router.get("/groups/{slug}")
-def groups(slug: str, db=Depends(get_db)):
-    return tournament_detail(slug, db)["groups"]
+def groups(slug: str, db=Depends(get_db),user=Depends(optional_user)):
+    return public_tournament_detail(slug, db,user)["groups"]
 
 
 @router.get("/brackets/{slug}")
-def bracket(slug: str, db=Depends(get_db)):
+def bracket(slug: str, db=Depends(get_db),user=Depends(optional_user)):
     return [
-        m for m in tournament_detail(slug, db)["match_list"] if m["bracket_round_id"]
+        m for m in public_tournament_detail(slug, db,user)["match_list"] if m["bracket_round_id"]
     ]
 
 
 @router.get("/leaderboard")
-def leaderboard(slug: str = "", db=Depends(get_db)):
+def leaderboard(slug: str = "", page:int=Query(1,ge=1),page_size:int=Query(100,ge=1,le=100), db=Depends(get_db)):
     if slug:
-        return standings(db, get_tournament(db, slug).id)
-    rows = [player_view(db, p) for p in db.scalars(select(Player))]
-    return sorted(rows, key=lambda r: (-r["points"], -r["win_rate"], r["nickname"]))
+        t=get_tournament(db,slug)
+        require(t.status!="draft","Tournament not found",404)
+        return standings(db, t.id)
+    rows = player_summaries(db,db.scalars(select(Player)))
+    return sorted(rows, key=lambda r: (-r["points"], -r["win_rate"], r["nickname"]))[(page-1)*page_size:page*page_size]
 
 
 @router.get("/players")
 def players(q: str = "", page: int = Query(1, ge=1), db=Depends(get_db)):
-    return [
-        player_view(db, p)
-        for p in db.scalars(
-            select(Player)
-            .where(Player.nickname.ilike(f"%{q[:80]}%"))
-            .offset((page - 1) * 24)
-            .limit(24)
-        )
-    ]
+    return player_summaries(db,db.scalars(select(Player).where(Player.nickname.ilike(f"%{q[:80]}%")).order_by(Player.id).offset((page-1)*24).limit(24)))
 
 
 @router.get("/players/{username}")
@@ -743,7 +737,7 @@ def update_profile(data: ProfileUpdate, user=Depends(current_user), db=Depends(g
     for key, value in data.model_dump().items():
         setattr(user.player, key, value)
     db.commit()
-    return player_view(db, user.player)
+    return {**player_view(db, user.player), "phone": user.player.phone}
 
 
 def team_view(db, t):
@@ -884,7 +878,7 @@ def admin(user=Depends(staff), db=Depends(get_db)):
     return dict(
         tournaments=[tournament_view(db, t) for t in ts],
         registrations=registrations(user, db),
-        matches=[match_view(db, m) for m in ms],
+        matches=match_views(db,select(Match).where(Match.tournament_id.in_(ids)).order_by(Match.scheduled_at)),
         players=db.scalar(select(func.count()).select_from(Player)),
         activity=[
             dict(

@@ -1,4 +1,5 @@
 "use client";
+import { toUtc } from "@/lib/utils";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ export function MatchEditor({
                 away_id: t.game === "pubg" ? null : Number(f.get("away")),
                 group_id: f.get("group") ? Number(f.get("group")) : null,
                 round: f.get("round"),
-                scheduled_at: new Date(String(f.get("at"))).toISOString(),
+                scheduled_at: toUtc(String(f.get("at"))),
               });
               toast.success("O‘yin rejalashtirildi");
               onSaved();
@@ -86,7 +87,7 @@ export function MatchEditor({
             <input name="round" required minLength={2} maxLength={64} />
           </label>
           <label>
-            Rejalashtirilgan vaqt
+            Rejalashtirilgan vaqt (Toshkent, UTC+5)
             <input name="at" type="datetime-local" required />
           </label>
           <Button disabled={busy}>{busy ? "Saqlanmoqda…" : "O‘yinni rejalashtirish"}</Button>

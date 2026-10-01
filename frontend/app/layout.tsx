@@ -1,8 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { AuthProvider } from "@/components/auth-provider";
 import { Toaster } from "sonner";
 import { GeistSans } from "geist/font/sans";
 import "./globals.css";
+
+export const viewport: Viewport = { themeColor: "#090a10", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export const metadata: Metadata = {
   title: "ARENA — Raqobatbardoshlar uchun yaratilgan",

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { ProfileChecklist, OwnTeams, TeamManager, TelegramConnect } from "./profile-tools";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
@@ -8,10 +9,7 @@ import {
   Gamepad2,
   Medal,
   Bell,
-  Users,
-  Check,
-  Send,
-} from "lucide-react";
+  Users} from "lucide-react";
 import { toast } from "sonner";
 import { Shell, Logo } from "@/components/shell";
 import { useAuth } from "@/components/auth-provider";
@@ -24,8 +22,7 @@ import {
   Loading,
   ErrorState,
   Empty,
-  Badge,
-} from "@/components/competition";
+  Badge} from "@/components/competition";
 import { useApi } from "@/hooks/use-api";
 import { mutate } from "@/services/api";
 import type { Player, Team, Registration } from "@/types";
@@ -287,6 +284,7 @@ export function TeamPage({ id }: { id: string }) {
               <StatCard label="G‘alaba ko‘rsatkichi" value={`${t.win_rate}%`} />
               <StatCard label="Turnir chempionliklari" value={t.titles} />
             </div>
+            <TeamManager team={t} onSaved={r.reload}/>
             <div className="section-heading">
               <h2>Jamoa tarkibi</h2>
             </div>
@@ -358,13 +356,15 @@ export function ProfilePage() {
 }
 
 function ProfileContent({ nickname }: { nickname: string }) {
-  const profile = useApi<Player>(`/players/${nickname}`),
+  const router=useRouter();
+  const [playerQuery,setPlayerQuery]=useState("");
+  const profile = useApi<Player>("/users/me/profile"),
     registrations = useApi<Registration[]>("/registrations"),
     notifications =
       useApi<{ id: number; title: string; body: string; read: boolean }[]>(
         "/notifications",
       ),
-    players = useApi<Player[]>("/players");
+    players = useApi<Player[]>(`/players?q=${encodeURIComponent(playerQuery)}`);
   const [busy, setBusy] = useState(false),
     [members, setMembers] = useState<number[]>([]),
     [subs, setSubs] = useState<number[]>([]);
@@ -384,6 +384,8 @@ function ProfileContent({ nickname }: { nickname: string }) {
           <Link href={`/players/${nickname}`}>Ommaviy profil</Link>
         </Button>
       </div>
+      {profile.loading?<Loading/>:profile.error?<ErrorState message={profile.error} retry={profile.reload}/>:p&&<ProfileChecklist p={p}/>}
+      <OwnTeams/>
       <div className="account-grid">
         <section className="panel prose">
           <h2>O‘yinchi ma’lumotlari</h2>
@@ -446,46 +448,14 @@ function ProfileContent({ nickname }: { nickname: string }) {
                 </label>
                 <label>
                   Telefon (ixtiyoriy)
-                  <input name="phone" type="tel" />
+                  <input name="phone" type="tel" defaultValue={p?.phone || ""} />
                 </label>
               </div>
               <Button disabled={busy}>Profilni saqlash</Button>
             </form>
           )}
           <div className="divider" />
-          <h3>
-            <Send size={18} /> Telegramni ulash
-          </h3>
-          <p>
-            Shaxsingizni tasdiqlash uchun ARENA botining Mini App ilovasini oching.
-            Ushbu hisobni ulash uchun avval shu yerda tizimga kiring, so‘ng tasdiqlangan
-            Mini App ma’lumotlaridan foydalaning.
-          </p>
-          <form
-            className="form"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget);
-              try {
-                await mutate("/auth/telegram", {
-                  init_data: f.get("init_data"),
-                });
-                toast.success("Telegram hisobi ulandi");
-              } catch (e) {
-                toast.error((e as Error).message);
-              }
-            }}
-          >
-            <label>
-              Tasdiqlangan Mini App ma’lumotlari (initData)
-              <textarea
-                name="init_data"
-                required
-                placeholder="Telegram.WebApp.initData"
-              />
-            </label>
-            <Button variant="secondary">Telegramni tasdiqlash va ulash</Button>
-          </form>
+          <TelegramConnect/>
         </section>
         <section className="panel prose">
           <h2>
@@ -513,7 +483,8 @@ function ProfileContent({ nickname }: { nickname: string }) {
             />
           )}
           <div className="divider" />
-          <h3>Ro‘yxatdan o‘tganlar</h3>
+          <h3>Arizalarim</h3>
+          {registrations.loading?<Loading/>:registrations.error?<ErrorState message={registrations.error} retry={registrations.reload}/>:!registrations.data?.length&&<p>Hali ariza yubormagansiz.</p>}
           {registrations.data?.map((r) => (
             <div className="list-row" key={r.id}>
               <span>{r.tournament}</span>
@@ -540,7 +511,7 @@ function ProfileContent({ nickname }: { nickname: string }) {
                   substitute_ids: subs,
                 });
                 toast.success(`${t.name} tayyor`);
-                window.location.href = `/teams/${t.id}`;
+                router.push(`/teams/${t.id}`);
               } catch (e) {
                 toast.error((e as Error).message);
               } finally {
@@ -556,6 +527,7 @@ function ProfileContent({ nickname }: { nickname: string }) {
               Jamoa logotipi havolasi
               <input name="logo" type="url" placeholder="https://" />
             </label>
+            <label>O‘yinchilarni qidirish<input value={playerQuery} onChange={e=>setPlayerQuery(e.target.value)} placeholder="Taxallus bo‘yicha qidirish"/></label>
             <div className="roster-picker">
               {players.data
                 ?.filter((x) => x.nickname !== nickname)

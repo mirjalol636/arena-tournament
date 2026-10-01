@@ -232,4 +232,4 @@ def test_registration_deadline_enforced(client, db, field):
     h = login(client, u.email)
     r = client.post(f"/api/tournaments/{t.slug}/register", headers=h, json={})
     assert r.status_code == 409
-    assert "closed" in r.json()["detail"].lower()
+    assert r.json()["detail"]["code"] == "registration_ended"
