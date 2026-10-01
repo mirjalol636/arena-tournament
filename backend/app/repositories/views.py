@@ -178,10 +178,13 @@ def player_view(db, p):
         history=[
             tournament_view(db, t)
             for t in db.scalars(
-                select(Tournament)
-                .join(Participant)
-                .where(Participant.id.in_(participant_ids))
-                .distinct()
+                select(Tournament).where(
+                    Tournament.id.in_(
+                        select(Participant.tournament_id)
+                        .where(Participant.id.in_(participant_ids))
+                        .distinct()
+                    )
+                )
             )
         ],
     )
