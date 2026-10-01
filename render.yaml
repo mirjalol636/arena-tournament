@@ -31,10 +31,10 @@
         value: "true"
 
       - key: CORS_ORIGINS
-        value: https://TEMP-NETLIFY.netlify.app
+        value: https://tropical-constanta-mirjalol-151677ac.koyeb.app
 
       - key: PUBLIC_URL
-        value: https://TEMP-NETLIFY.netlify.app
+        value: https://tropical-constanta-mirjalol-151677ac.koyeb.app
 
       - key: TELEGRAM_BOT_TOKEN
         sync: false
@@ -52,3 +52,5 @@ databases:
     plan: free
     databaseName: arena
     user: arena
+
+
